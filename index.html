@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>My Visual World</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #0d0f1a;
+    --card: rgba(255,255,255,0.06);
+    --card-border: rgba(255,255,255,0.10);
+    --text: #f4f4f8;
+    --muted: rgba(244,244,248,0.6);
+    --accent: #8b7bff;
+    --accent-2: #ff7bd5;
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(1200px 600px at 20% -10%, #2a2160 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #4a1f55 0%, transparent 55%),
+                var(--bg);
+    color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100%; padding: 20px 16px 32px; display: flex; flex-direction: column; }
+
+  /* ---------- Приветствие ---------- */
+  .hero { flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 18px; }
+  .hero-orb {
+    width: 150px; height: 150px; margin: 0 auto; border-radius: 50%;
+    background: conic-gradient(from 0deg, #8b7bff, #ff7bd5, #ffc46b, #6bffd8, #8b7bff);
+    filter: blur(0.5px); animation: spin 12s linear infinite;
+    box-shadow: 0 0 80px rgba(139,123,255,0.5);
+  }
+  .hero h1 { margin: 0; font-size: 30px; letter-spacing: -0.5px; }
+  .hero p { margin: 0; color: var(--muted); }
+
+  /* ---------- Вопросы ---------- */
+  .top { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .back { background: none; border: 0; color: var(--muted); font-size: 22px; padding: 4px 8px; cursor: pointer; }
+  .back[hidden] { visibility: hidden; display: block; }
+  .progress { flex: 1; display: flex; gap: 6px; }
+  .progress span { flex: 1; height: 4px; border-radius: 4px; background: var(--card-border); transition: background .3s; }
+  .progress span.on { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .step-label { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+  h2 { margin: 0 0 20px; font-size: 24px; line-height: 1.2; letter-spacing: -0.3px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .opt {
+    position: relative; overflow: hidden; text-align: left; cursor: pointer;
+    background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius);
+    color: var(--text); padding: 0; font: inherit; min-height: 120px;
+    display: flex; flex-direction: column; transition: transform .15s, border-color .2s;
+  }
+  .opt:active { transform: scale(0.97); }
+  .opt.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+  .opt .preview { height: 70px; display: flex; align-items: center; justify-content: center; font-size: 34px; }
+  .opt .label { padding: 10px 12px 12px; font-weight: 600; font-size: 15px; }
+  .swatches { display: flex; width: 100%; height: 100%; }
+  .swatches i { flex: 1; }
+
+  .fade-in { animation: fadeIn .35s ease both; }
+
+  /* ---------- Мир ---------- */
+  .world-title { text-align: center; margin: 4px 0 16px; }
+  .world-title small { color: var(--muted); display: block; margin-bottom: 4px; }
+  .world-title h1 { margin: 0; font-size: 26px; }
+  .scene {
+    position: relative; width: 100%; aspect-ratio: 3 / 4; border-radius: 28px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid var(--card-border);
+  }
+  .scene svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .particles { position: absolute; inset: 0; pointer-events: none; }
+  .particles span {
+    position: absolute; bottom: -30px; font-size: 18px; opacity: 0;
+    animation: floatUp linear infinite; text-shadow: 0 0 8px rgba(255,255,255,0.6);
+  }
+  .badge {
+    position: absolute; font-size: 38px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
+    animation: bob 4s ease-in-out infinite;
+  }
+  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+  .chip { background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; padding: 10px 12px; }
+  .chip small { color: var(--muted); display: block; font-size: 12px; }
+  .chip b { font-size: 15px; }
+  .chip.wide { grid-column: 1 / -1; }
+
+  /* ---------- Кнопки ---------- */
+  .btn {
+    width: 100%; border: 0; border-radius: 16px; padding: 16px; font-family: inherit; font-size: 17px; font-weight: 600; cursor: pointer;
+    color: #fff; background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    box-shadow: 0 10px 30px rgba(139,123,255,0.35); transition: transform .15s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.ghost { background: var(--card); box-shadow: none; border: 1px solid var(--card-border); margin-top: 10px; font-weight: 500; }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #222436; color: var(--text);
+    padding: 12px 16px; border-radius: 14px; font-size: 14px; border: 1px solid var(--card-border);
+    max-width: calc(100% - 32px); text-align: center; animation: fadeIn .25s ease both;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  @keyframes floatUp {
+    0% { transform: translateY(0) rotate(0); opacity: 0; }
+    10% { opacity: .9; }
+    90% { opacity: .9; }
+    100% { transform: translateY(-560px) rotate(25deg); opacity: 0; }
+  }
+  @keyframes twinkle { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// Коды ответов совпадают с QUESTIONS в bot.py
+const QUESTIONS = [
+  { key: "style", title: "Стиль", text: "Какой визуальный стиль тебе ближе?", options: [
+    { code: "minimal", label: "Минимализм" }, { code: "cozy", label: "Уют / хюгге" },
+    { code: "bold", label: "Яркий и смелый" }, { code: "nature", label: "Природный" },
+    { code: "future", label: "Футуризм" }, { code: "vintage", label: "Винтаж" } ] },
+  { key: "mood", title: "Настроение", text: "Какое настроение должно быть у твоего мира?", options: [
+    { code: "calm", label: "Спокойствие" }, { code: "energy", label: "Энергия" },
+    { code: "inspiration", label: "Вдохновение" }, { code: "romance", label: "Романтика" },
+    { code: "focus", label: "Фокус" } ] },
+  { key: "music", title: "Музыка", text: "Какая музыка звучит в твоём мире?", options: [
+    { code: "lofi", label: "Lo-fi / чилл", emoji: "🎧" }, { code: "pop", label: "Поп", emoji: "🎤" },
+    { code: "rock", label: "Рок", emoji: "🎸" }, { code: "electronic", label: "Электроника", emoji: "🎛️" },
+    { code: "classic", label: "Классика / джаз", emoji: "🎻" }, { code: "hiphop", label: "Хип-хоп", emoji: "🎙️" } ] },
+  { key: "goal", title: "Цель", text: "Какая цель для тебя сейчас главная?", options: [
+    { code: "health", label: "Здоровье и спорт", emoji: "🏃" }, { code: "career", label: "Карьера и деньги", emoji: "💼" },
+    { code: "creativity", label: "Творчество", emoji: "🎨" }, { code: "relations", label: "Отношения", emoji: "💞" },
+    { code: "growth", label: "Саморазвитие", emoji: "🌱" }, { code: "travel", label: "Путешествия", emoji: "✈️" } ] },
+  { key: "area", title: "Сфера жизни", text: "Какой сфере жизни ты хочешь уделять больше внимания?", options: [
+    { code: "work", label: "Работа", emoji: "💻" }, { code: "family", label: "Семья", emoji: "🏡" },
+    { code: "study", label: "Учёба", emoji: "📚" }, { code: "hobby", label: "Хобби", emoji: "🧩" },
+    { code: "sport", label: "Спорт", emoji: "⚽" }, { code: "rest", label: "Отдых", emoji: "🏖️" } ] },
+];
+
+// Визуальные параметры мира
+const PALETTES = {
+  minimal: ["#f2f2f0", "#cfcfcb", "#8f8f8a", "#3a3a38"],
+  cozy:    ["#f6e3c8", "#e0a96d", "#a0522d", "#4a2c1d"],
+  bold:    ["#ffb800", "#ff3d7f", "#6a00ff", "#00d1ff"],
+  nature:  ["#cfe8b0", "#8bc34a", "#4e7d3a", "#1f3b2a"],
+  future:  ["#0ff0fc", "#7a5cff", "#2b2f6b", "#0a0c1a"],
+  vintage: ["#f0e2c0", "#c9a66b", "#8c5e3c", "#3e3a36"],
+};
+const SKIES = {
+  calm:        { top: "#7f9cf5", bottom: "#e3ebff", orb: "#ffffff", stars: false },
+  energy:      { top: "#ff7a18", bottom: "#ffd56b", orb: "#fff3b0", stars: false },
+  inspiration: { top: "#6a3093", bottom: "#fa71cd", orb: "#ffe3f6", stars: true },
+  romance:     { top: "#ff8a9e", bottom: "#ffe1ec", orb: "#fff0f5", stars: false },
+  focus:       { top: "#0f1c3f", bottom: "#2a5298", orb: "#e8f0ff", stars: true },
+};
+const MUSIC = {
+  lofi:       { sym: ["♪", "♫"], speed: 9 },
+  pop:        { sym: ["★", "✦"], speed: 6 },
+  rock:       { sym: ["⚡", "✸"], speed: 4.5 },
+  electronic: { sym: ["◆", "◇"], speed: 5 },
+  classic:    { sym: ["♩", "𝄞"], speed: 10 },
+  hiphop:     { sym: ["●", "♬"], speed: 6 },
+};
+
+const tg = window.Telegram && window.Telegram.WebApp;
+const inTelegram = !!(tg && tg.initData !== undefined && tg.platform && tg.platform !== "unknown");
+if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0d0f1a"); tg.setBackgroundColor("#0d0f1a"); } catch (e) {} }
+
+const app = document.getElementById("app");
+let answers = {};
+let step = 0;
+
+function haptic(type = "light") {
+  try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred(type); } catch (e) {}
+}
+function el(tag, attrs = {}, children = []) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k === "text") n.textContent = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) if (c) n.append(c);
+  return n;
+}
+function toast(msg) {
+  document.querySelectorAll(".toast").forEach(t => t.remove());
+  const t = el("div", { class: "toast", text: msg });
+  document.body.append(t);
+  setTimeout(() => t.remove(), 3000);
+}
+function labelOf(key, code) {
+  const q = QUESTIONS.find(q => q.key === key);
+  const o = q && q.options.find(o => o.code === code);
+  return o ? o.label : "—";
+}
+function emojiOf(key, code) {
+  const q = QUESTIONS.find(q => q.key === key);
+  const o = q && q.options.find(o => o.code === code);
+  return o && o.emoji ? o.emoji : "";
+}
+
+// ---------- Экраны ----------
+
+function renderWelcome() {
+  setBackButton(false);
+  app.replaceChildren(
+    el("div", { class: "hero fade-in" }, [
+      el("div", { class: "hero-orb" }),
+      el("h1", { text: "My Visual World" }),
+      el("p", { text: "Ответь на 5 вопросов — и я соберу твой персональный визуальный мир." }),
+    ]),
+    el("button", { class: "btn", text: "Создать мой мир", onclick: () => { haptic(); step = 0; renderQuestion(); } }),
+  );
+}
+
+function optionPreview(q, o) {
+  if (q.key === "style") {
+    return el("div", { class: "preview" }, el("div", { class: "swatches" },
+      PALETTES[o.code].map(c => { const i = el("i"); i.style.background = c; return i; })));
+  }
+  if (q.key === "mood") {
+    const p = el("div", { class: "preview" });
+    const s = SKIES[o.code];
+    p.style.background = `linear-gradient(180deg, ${s.top}, ${s.bottom})`;
+    return p;
+  }
+  return el("div", { class: "preview", text: o.emoji || "" });
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[step];
+  setBackButton(true);
+  const progress = el("div", { class: "progress" },
+    QUESTIONS.map((_, i) => el("span", { class: i <= step ? "on" : "" })));
+  const back = el("button", { class: "back", text: "‹", "aria-label": "Назад", onclick: goBack });
+  if (inTelegram) back.hidden = true;
+
+  const grid = el("div", { class: "grid" }, q.options.map(o =>
+    el("button", {
+      class: "opt" + (answers[q.key] === o.code ? " sel" : ""),
+      onclick: (e) => choose(q.key, o.code, e.currentTarget),
+    }, [optionPreview(q, o), el("div", { class: "label", text: o.label })])
+  ));
+
+  app.replaceChildren(
+    el("div", { class: "top" }, [back, progress]),
+    el("div", { class: "fade-in" }, [
+      el("div", { class: "step-label", text: `Вопрос ${step + 1} из ${QUESTIONS.length}` }),
+      el("h2", { text: q.text }),
+      grid,
+    ]),
+  );
+  window.scrollTo(0, 0);
+}
+
+function choose(key, code, node) {
+  haptic();
+  answers[key] = code;
+  node.parentElement.querySelectorAll(".opt").forEach(b => b.classList.remove("sel"));
+  node.classList.add("sel");
+  setTimeout(() => {
+    if (step < QUESTIONS.length - 1) { step++; renderQuestion(); }
+    else renderWorld(false);
+  }, 220);
+}
+
+function goBack() {
+  haptic();
+  if (step > 0) { step--; renderQuestion(); } else renderWelcome();
+}
+
+function setBackButton(show) {
+  if (!inTelegram || !tg.BackButton) return;
+  tg.BackButton.offClick(goBack);
+  if (show) { tg.BackButton.onClick(goBack); tg.BackButton.show(); } else tg.BackButton.hide();
+}
+
+// ---------- Сцена мира ----------
+
+function buildScene(a) {
+  const pal = PALETTES[a.style] || PALETTES.minimal;
+  const sky = SKIES[a.mood] || SKIES.calm;
+  const music = MUSIC[a.music] || MUSIC.lofi;
+
+  const stars = sky.stars ? Array.from({ length: 28 }, (_, i) => {
+    const x = (i * 97) % 360, y = (i * 53) % 220, r = (i % 3) * 0.5 + 0.8, d = (i % 5) + 2;
+    return `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" style="animation:twinkle ${d}s ease-in-out ${i % 4}s infinite"/>`;
+  }).join("") : "";
+
+  const svg = `
+  <svg viewBox="0 0 360 480" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${sky.top}"/><stop offset="1" stop-color="${sky.bottom}"/>
+      </linearGradient>
+      <radialGradient id="glow"><stop offset="0" stop-color="${sky.orb}" stop-opacity=".9"/><stop offset="1" stop-color="${sky.orb}" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="360" height="480" fill="url(#sky)"/>
+    ${stars}
+    <circle cx="250" cy="140" r="90" fill="url(#glow)"/>
+    <circle cx="250" cy="140" r="38" fill="${sky.orb}"/>
+    <path d="M0 300 C 60 250, 120 270, 180 255 S 300 230, 360 265 L360 480 L0 480Z" fill="${pal[0]}" opacity=".9"/>
+    <path d="M0 340 C 80 300, 150 330, 210 315 S 320 300, 360 320 L360 480 L0 480Z" fill="${pal[1]}"/>
+    <path d="M0 395 C 70 365, 140 385, 200 375 S 310 360, 360 380 L360 480 L0 480Z" fill="${pal[2]}"/>
+    <path d="M0 440 C 90 420, 170 435, 240 428 S 330 420, 360 430 L360 480 L0 480Z" fill="${pal[3]}"/>
+  </svg>`;
+
+  const scene = el("div", { class: "scene" });
+  scene.innerHTML = svg;
+
+  const particles = el("div", { class: "particles" });
+  for (let i = 0; i < 14; i++) {
+    const s = el("span", { text: music.sym[i % music.sym.length] });
+    s.style.left = `${(i * 37) % 95}%`;
+    s.style.color = pal[i % 2 === 0 ? 0 : 1];
+    s.style.fontSize = `${14 + (i % 4) * 5}px`;
+    s.style.animationDuration = `${music.speed + (i % 5)}s`;
+    s.style.animationDelay = `${(i * 0.7) % music.speed}s`;
+    particles.append(s);
+  }
+  scene.append(particles);
+
+  const goal = el("div", { class: "badge", text: emojiOf("goal", a.goal) });
+  goal.style.left = "18%"; goal.style.top = "58%";
+  const area = el("div", { class: "badge", text: emojiOf("area", a.area) });
+  area.style.left = "62%"; area.style.top = "68%"; area.style.animationDelay = "1.3s";
+  scene.append(goal, area);
+  return scene;
+}
+
+function renderWorld(viewOnly) {
+  setBackButton(!viewOnly);
+  const name = tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name;
+  const chip = (key, wide) => el("div", { class: "chip" + (wide ? " wide" : "") }, [
+    el("small", { text: QUESTIONS.find(q => q.key === key).title }),
+    el("b", { text: `${emojiOf(key, answers[key])} ${labelOf(key, answers[key])}`.trim() }),
+  ]);
+
+  const actions = viewOnly
+    ? [el("button", { class: "btn", text: "Пройти заново", onclick: () => { haptic(); answers = {}; step = 0; renderQuestion(); } })]
+    : [
+        el("button", { class: "btn", text: "Сохранить мой мир", onclick: save }),
+        el("button", { class: "btn ghost", text: "Изменить ответы", onclick: () => { haptic(); step = 0; renderQuestion(); } }),
+      ];
+
+  app.replaceChildren(
+    el("div", { class: "fade-in" }, [
+      el("div", { class: "world-title" }, [
+        el("small", { text: "✨ Твой визуальный мир ✨" }),
+        el("h1", { text: name ? `Мир ${name}` : "Мой мир" }),
+      ]),
+      buildScene(answers),
+      el("div", { class: "chips" }, [chip("style"), chip("mood"), chip("music"), chip("goal"), chip("area", true)]),
+      ...actions,
+    ]),
+  );
+  window.scrollTo(0, 0);
+  try { tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("success"); } catch (e) {}
+}
+
+function save() {
+  haptic("medium");
+  const payload = JSON.stringify({ type: "world", answers });
+  if (inTelegram) {
+    try { tg.sendData(payload); return; } catch (e) { /* открыт не через кнопку клавиатуры */ }
+    toast("Не получилось сохранить. Открой приложение кнопкой внизу чата.");
+  } else {
+    toast("Это предпросмотр. Сохранение работает внутри Telegram.");
+  }
+}
+
+// ---------- Старт ----------
+// Если ответы переданы в адресе (?style=..&mood=..), сразу показываем готовый мир.
+const params = new URLSearchParams(location.search);
+const fromUrl = {};
+for (const q of QUESTIONS) {
+  const v = params.get(q.key);
+  if (v && q.options.some(o => o.code === v)) fromUrl[q.key] = v;
+}
+if (Object.keys(fromUrl).length === QUESTIONS.length) { answers = fromUrl; renderWorld(true); }
+else renderWelcome();
+</script>
+</body>
+</html>
